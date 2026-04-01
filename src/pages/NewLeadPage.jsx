@@ -117,6 +117,7 @@ export default function NewLeadPage({ profile }) {
       .single();
 
     if (error) throw error;
+
     return data.id;
   }
 
@@ -197,13 +198,25 @@ export default function NewLeadPage({ profile }) {
     }
   }
 
-  const productOptions = useMemo(() => products.map((item) => (
-    <option key={item.id} value={item.id}>{item.name}</option>
-  )), [products]);
+  const productOptions = useMemo(
+    () =>
+      products.map((item) => (
+        <option key={item.id} value={item.id}>
+          {item.name}
+        </option>
+      )),
+    [products]
+  );
 
-  const channelOptions = useMemo(() => channels.map((item) => (
-    <option key={item.id} value={item.id}>{item.name}</option>
-  )), [channels]);
+  const channelOptions = useMemo(
+    () =>
+      channels.map((item) => (
+        <option key={item.id} value={item.id}>
+          {item.name}
+        </option>
+      )),
+    [channels]
+  );
 
   return (
     <>
@@ -221,47 +234,86 @@ export default function NewLeadPage({ profile }) {
         <div className="form-grid-3">
           <div>
             <label>Nome do Contato *</label>
-            <input value={form.contact_name} onChange={(e) => updateField("contact_name", e.target.value)} placeholder="Nome do contato" />
+            <input
+              value={form.contact_name}
+              onChange={(e) => updateField("contact_name", e.target.value)}
+              placeholder="Nome do contato"
+            />
           </div>
 
           <div>
             <label>Empresa *</label>
-            <input value={form.company_name} onChange={(e) => updateField("company_name", e.target.value)} placeholder="Empresa" />
+            <input
+              value={form.company_name}
+              onChange={(e) => updateField("company_name", e.target.value)}
+              placeholder="Empresa"
+            />
           </div>
 
           <div>
             <label>CNPJ *</label>
-            <input value={formatCnpj(form.cnpj)} onChange={(e) => updateField("cnpj", digitsOnly(e.target.value))} onBlur={searchExistingCustomer} placeholder="CNPJ" />
+            <input
+              value={formatCnpj(form.cnpj)}
+              onChange={(e) => updateField("cnpj", digitsOnly(e.target.value))}
+              onBlur={searchExistingCustomer}
+              placeholder="CNPJ"
+            />
           </div>
 
           <div>
             <label>Segmento</label>
-            <input value={form.segment} onChange={(e) => updateField("segment", e.target.value)} placeholder="Segmento" />
+            <input
+              value={form.segment}
+              onChange={(e) => updateField("segment", e.target.value)}
+              placeholder="Segmento"
+            />
           </div>
 
           <div>
             <label>Cidade</label>
-            <input value={form.city} onChange={(e) => updateField("city", e.target.value)} placeholder="Cidade" />
+            <input
+              value={form.city}
+              onChange={(e) => updateField("city", e.target.value)}
+              placeholder="Cidade"
+            />
           </div>
 
           <div>
             <label>Estado</label>
-            <input value={form.state} onChange={(e) => updateField("state", e.target.value.toUpperCase().slice(0, 2))} placeholder="UF" />
+            <input
+              value={form.state}
+              onChange={(e) => updateField("state", e.target.value.toUpperCase().slice(0, 2))}
+              placeholder="UF"
+            />
           </div>
 
           <div>
             <label>WhatsApp *</label>
-            <input value={formatPhone(form.phone)} onChange={(e) => updateField("phone", digitsOnly(e.target.value))} onBlur={searchExistingCustomer} placeholder="WhatsApp" />
+            <input
+              value={formatPhone(form.phone)}
+              onChange={(e) => updateField("phone", digitsOnly(e.target.value))}
+              onBlur={searchExistingCustomer}
+              placeholder="WhatsApp"
+            />
           </div>
 
           <div>
             <label>E-mail *</label>
-            <input value={form.email} onChange={(e) => updateField("email", e.target.value)} onBlur={searchExistingCustomer} placeholder="E-mail" />
+            <input
+              value={form.email}
+              onChange={(e) => updateField("email", e.target.value)}
+              onBlur={searchExistingCustomer}
+              placeholder="E-mail"
+            />
           </div>
 
           <div>
             <label>Observações</label>
-            <input value={form.observations} onChange={(e) => updateField("observations", e.target.value)} placeholder="Observações" />
+            <input
+              value={form.observations}
+              onChange={(e) => updateField("observations", e.target.value)}
+              placeholder="Observações"
+            />
           </div>
         </div>
 
@@ -288,12 +340,20 @@ export default function NewLeadPage({ profile }) {
 
           <div>
             <label>Origem detalhada</label>
-            <input value={form.source_detail} onChange={(e) => updateField("source_detail", e.target.value)} placeholder="Origem detalhada" />
+            <input
+              value={form.source_detail}
+              onChange={(e) => updateField("source_detail", e.target.value)}
+              placeholder="Origem detalhada"
+            />
           </div>
 
           <div>
             <label>Campanha</label>
-            <input value={form.campaign} onChange={(e) => updateField("campaign", e.target.value)} placeholder="Campanha" />
+            <input
+              value={form.campaign}
+              onChange={(e) => updateField("campaign", e.target.value)}
+              placeholder="Campanha"
+            />
           </div>
         </div>
 
@@ -333,23 +393,61 @@ export default function NewLeadPage({ profile }) {
 
           <div>
             <label>Valor Orçado</label>
-            <input value={form.budget_amount} onChange={(e) => updateField("budget_amount", e.target.value)} onBlur={() => updateField("budget_amount", form.budget_amount ? formatMoney(parseMoneyInput(form.budget_amount)) : "")} placeholder="R$ 0,00" />
+            <input
+              value={form.budget_amount}
+              onChange={(e) => updateField("budget_amount", e.target.value)}
+              onBlur={() =>
+                updateField(
+                  "budget_amount",
+                  form.budget_amount ? formatMoney(parseMoneyInput(form.budget_amount)) : ""
+                )
+              }
+              placeholder="R$ 0,00"
+            />
           </div>
 
           <div>
             <label>Valor Fechado</label>
-            <input value={form.sold_amount} onChange={(e) => updateField("sold_amount", e.target.value)} onBlur={() => updateField("sold_amount", form.sold_amount ? formatMoney(parseMoneyInput(form.sold_amount)) : "")} placeholder="R$ 0,00" />
+            <input
+              value={form.sold_amount}
+              onChange={(e) => updateField("sold_amount", e.target.value)}
+              onBlur={() =>
+                updateField(
+                  "sold_amount",
+                  form.sold_amount ? formatMoney(parseMoneyInput(form.sold_amount)) : ""
+                )
+              }
+              placeholder="R$ 0,00"
+            />
           </div>
 
           <div>
             <label>Resumo do Atendimento *</label>
-            <input value={form.summary} onChange={(e) => updateField("summary", e.target.value)} placeholder="Resumo" />
+            <input
+              value={form.summary}
+              onChange={(e) => updateField("summary", e.target.value)}
+              placeholder="Resumo"
+            />
           </div>
         </div>
 
         <div className="check-row">
-          <label><input type="checkbox" checked={form.has_demand} onChange={(e) => updateField("has_demand", e.target.checked)} /> Possui demanda real?</label>
-          <label><input type="checkbox" checked={form.has_budget} onChange={(e) => updateField("has_budget", e.target.checked)} /> Possui orçamento definido?</label>
+          <label>
+            <input
+              type="checkbox"
+              checked={form.has_demand}
+              onChange={(e) => updateField("has_demand", e.target.checked)}
+            />
+            Possui demanda real?
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={form.has_budget}
+              onChange={(e) => updateField("has_budget", e.target.checked)}
+            />
+            Possui orçamento definido?
+          </label>
         </div>
 
         {existingCustomer && (
