@@ -1,50 +1,39 @@
 # CRM Mocelin — Vite + React + Supabase
 
-Estrutura inicial pronta para publicar no GitHub e no Vercel.
+Versão com:
+- login real via Supabase
+- leitura do perfil do usuário
+- módulo **Novo Lead** conectado ao banco
 
-## 1. Instalação
+## Instalação
 ```bash
 npm install
 ```
 
-## 2. Variáveis de ambiente
-Copie o arquivo `.env.example` para `.env` e preencha:
-
+## Variáveis de ambiente
+Crie um `.env` com:
 ```bash
-cp .env.example .env
+VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+VITE_SUPABASE_ANON_KEY=SUA_CHAVE_PUBLICA_AQUI
 ```
 
-Variáveis:
+## Publicar no Vercel
+Crie estas variáveis:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-## 3. Rodar localmente
-```bash
-npm run dev
-```
-
-## 4. Build
-```bash
-npm run build
-```
-
-## 5. Publicar no Vercel
-No Vercel, crie estas variáveis:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
-Depois faça um novo deploy.
-
-## O que já está pronto
-- conexão com Supabase
-- tela de login real
-- leitura do perfil do usuário em `user_profiles`
-- shell inicial do CRM
+## Fluxo do Novo Lead
+1. O usuário informa CNPJ, telefone ou e-mail
+2. O sistema busca cliente existente em `customers`
+3. Se existir, carrega automaticamente os dados
+4. Ao salvar:
+   - reaproveita o cliente existente ou cria um novo
+   - cria um novo registro em `leads`
 
 ## Próximo passo
 Migrar:
-- leads
-- pipeline
-- tarefas
-- histórico
-- relatórios
+- Meus Leads
+- Pipeline
+- Tarefas
+- Histórico
+- Relatórios
