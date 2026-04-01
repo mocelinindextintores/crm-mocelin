@@ -23,29 +23,12 @@ export default function LoginForm({ onSubmit, loading, error }) {
 
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="login-field">
-              <input
-                type="email"
-                placeholder="E-mail"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
 
             <div className="login-field">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="login-eye"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label="Mostrar ou ocultar senha"
-              >
+              <input type={showPassword ? "text" : "password"} placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <button type="button" className="login-eye" onClick={() => setShowPassword((prev) => !prev)} aria-label="Mostrar ou ocultar senha">
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
@@ -57,9 +40,7 @@ export default function LoginForm({ onSubmit, loading, error }) {
             <div className="error-text">{error || ""}</div>
           </form>
 
-          <div className="login-foot">
-            Sistema para gerenciamento de novos leads
-          </div>
+          <div className="login-foot">Sistema para gerenciamento de novos leads</div>
         </div>
       </div>
     </div>

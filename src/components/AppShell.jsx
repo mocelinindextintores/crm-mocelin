@@ -1,4 +1,6 @@
-export default function AppShell({ profile, onLogout }) {
+export default function AppShell({ profile, activeView, setActiveView, onLogout, children }) {
+  const isSeller = profile?.role === "Vendedor";
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -6,11 +8,7 @@ export default function AppShell({ profile, onLogout }) {
           <div className="brand">
             <div className="brand-mark">M</div>
             <div>
-              <h1>
-                CRM Clientes Novos
-                <br />
-                Mocelin
-              </h1>
+              <h1>CRM Clientes Novos<br />Mocelin</h1>
               <p>Sistema de Gestão</p>
             </div>
           </div>
@@ -22,17 +20,22 @@ export default function AppShell({ profile, onLogout }) {
         </div>
 
         <nav className="nav">
-          <button className="nav-btn active" type="button">
-            <span className="nav-icon">🏠</span>
-            <span>Dashboard</span>
+          <button className={`nav-btn ${activeView === "dashboard" ? "active" : ""}`} type="button" onClick={() => setActiveView("dashboard")}>
+            <span className="nav-icon">🏠</span><span>Dashboard</span>
           </button>
-          <button className="nav-btn" type="button">
-            <span className="nav-icon">📊</span>
-            <span>Pipeline</span>
+
+          <button className={`nav-btn ${activeView === "pipeline" ? "active" : ""}`} type="button" onClick={() => setActiveView("pipeline")}>
+            <span className="nav-icon">📊</span><span>Pipeline</span>
           </button>
-          <button className="nav-btn" type="button">
-            <span className="nav-icon">👥</span>
-            <span>Meus Leads</span>
+
+          {!isSeller && (
+            <button className={`nav-btn ${activeView === "novo-lead" ? "active" : ""}`} type="button" onClick={() => setActiveView("novo-lead")}>
+              <span className="nav-icon">➕</span><span>Novo Lead</span>
+            </button>
+          )}
+
+          <button className={`nav-btn ${activeView === "meus-leads" ? "active" : ""}`} type="button" onClick={() => setActiveView("meus-leads")}>
+            <span className="nav-icon">👥</span><span>Meus Leads</span>
           </button>
         </nav>
 
@@ -44,43 +47,7 @@ export default function AppShell({ profile, onLogout }) {
         </div>
       </aside>
 
-      <main className="content">
-        <section className="hero">
-          <h2>CRM Mocelin conectado ao Supabase</h2>
-          <p>
-            Login real concluído. Próximo passo: migrar leads, pipeline, tarefas
-            e relatórios.
-          </p>
-        </section>
-
-        <section className="grid-2">
-          <article className="card panel-body">
-            <h3 className="section-title">Usuário logado</h3>
-            <p className="section-subtitle">
-              Dados vindos da tabela <strong>user_profiles</strong>
-            </p>
-            <div className="info-list">
-              <div><strong>Nome:</strong> {profile?.full_name || "-"}</div>
-              <div><strong>E-mail:</strong> {profile?.email || "-"}</div>
-              <div><strong>Função:</strong> {profile?.role || "-"}</div>
-            </div>
-          </article>
-
-          <article className="card panel-body">
-            <h3 className="section-title">Próxima etapa</h3>
-            <p className="section-subtitle">
-              Conectar os módulos do CRM ao banco real.
-            </p>
-            <ul className="todo-list">
-              <li>Clientes</li>
-              <li>Leads / orçamentos</li>
-              <li>Pipeline</li>
-              <li>Tarefas</li>
-              <li>Histórico</li>
-            </ul>
-          </article>
-        </section>
-      </main>
+      <main className="content">{children}</main>
     </div>
   );
 }
