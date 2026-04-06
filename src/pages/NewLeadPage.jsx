@@ -1,9 +1,23 @@
-export default function NewLeadPage({ profile }) {
-  console.log("VERSAO NOVA NEWLEADPAGE 02");
-  
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { digitsOnly, formatCnpj, formatMoney, formatPhone, parseMoneyInput } from "../lib/utils";
+import {
+  digitsOnly,
+  formatCnpj,
+  formatMoney,
+  formatPhone,
+  parseMoneyInput,
+} from "../lib/utils";
+
+const emptyForm = {
+  ...
+};
+
+export default function NewLeadPage({ profile }) {
+  console.log("VERSAO NOVA NEWLEADPAGE 02");
+
+  const [form, setForm] = useState(emptyForm);
+  ...
+}
 
 const emptyForm = {
   contact_name: "",
