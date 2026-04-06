@@ -94,32 +94,42 @@ export default function NewLeadPage({ profile }) {
     }
   }
 
-  async function ensureCustomer() {
-    if (existingCustomer?.id) return existingCustomer.id;
+ async function ensureCustomer() {
+  console.log("PROFILE ATUAL:", profile);
 
-    const payload = {
-      company_name: form.company_name.trim(),
-      contact_name: form.contact_name.trim(),
-      cnpj: digitsOnly(form.cnpj),
-      segment: form.segment.trim() || null,
-      city: form.city.trim() || null,
-      state: form.state || null,
-      phone: digitsOnly(form.phone),
-      email: form.email.trim().toLowerCase(),
-      observations: form.observations.trim() || null,
-      created_by: profile.id,
-    };
-
-    const { data, error } = await supabase
-      .from("customers")
-      .insert(payload)
-      .select("id")
-      .single();
-
-    if (error) throw error;
-
-    return data.id;
+  if (!profile?.id) {
+    throw new Error("Perfil do usuário não carregado. Verifique a tabela user_profiles.");
   }
+
+  if (existingCustomer?.id) return existingCustomer.id;
+
+  const payload = {
+    company_name: form.company_name.trim(),
+    contact_name: form.contact_name.trim(),
+    cnpj: digitsOnly(form.cnpj),
+    segment: form.segment.trim() || null,
+    city: form.city.trim() || null,
+    state: form.state || null,
+    phone: digitsOnly(form.phone),
+    email: form.email.trim().toLowerCase(),
+    observations: form.observations.trim() || null,
+    created_by: profile.id,
+  };
+
+  console.log("PAYLOAD CUSTOMER:", payload);
+
+  const { data, error } = await supabase
+    .from("customers")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  console.log("Resposta customer:", data, error);
+
+  if (error) throw error;
+
+  return data.id;
+}
 
   function validateForm() {
     if (!form.contact_name.trim()) return "Informe o nome do contato.";
