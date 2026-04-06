@@ -233,12 +233,11 @@ async function handleSubmit(event) {
     setForm(emptyForm);
     setExistingCustomer(null);
 
-  } catch (err) {
-    console.error("ERRO GERAL:", err);
-    setFeedback("Erro inesperado: " + err.message);
-  } finally {
-    setLoading(false);
-  }
+} catch (error) {
+  console.error("ERRO GERAL AO SALVAR:", error);
+  setFeedback("Erro inesperado: " + (error.message || "Falha ao salvar o lead."));
+} finally {
+  setLoading(false);
 }
 
   const productOptions = useMemo(
