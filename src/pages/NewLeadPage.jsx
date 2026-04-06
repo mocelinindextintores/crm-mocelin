@@ -133,70 +133,103 @@ export default function NewLeadPage({ profile }) {
     return "";
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setFeedback("");
+async function handleSubmit(event) {
+  event.preventDefault();
+  setFeedback("");
 
-    const validationError = validateForm();
-    if (validationError) {
-      setFeedback(validationError);
+  const validationError = validateForm();
+  if (validationError) {
+    setFeedback(validationError);
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    console.log("=== INICIANDO SALVAMENTO ===");
+
+    let customerId;
+
+    if (existingCustomer?.id) {
+      console.log("Cliente já existe:", existingCustomer.id);
+      customerId = existingCustomer.id;
+    } else {
+      console.log("Criando cliente...");
+
+      const payload = {
+        company_name: form.company_name.trim(),
+        contact_name: form.contact_name.trim(),
+        cnpj: digitsOnly(form.cnpj),
+        segment: form.segment || null,
+        city: form.city || null,
+        state: form.state || null,
+        phone: digitsOnly(form.phone),
+        email: form.email.trim().toLowerCase(),
+        observations: form.observations || null,
+        created_by: profile.id,
+      };
+
+      const { data, error } = await supabase
+        .from("customers")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      console.log("Resposta customer:", data, error);
+
+      if (error) {
+        setFeedback("Erro ao criar cliente: " + error.message);
+        return;
+      }
+
+      customerId = data.id;
+    }
+
+    console.log("Criando lead...");
+
+    const leadPayload = {
+      customer_id: customerId,
+      product_id: form.product_id || null,
+      channel_id: form.channel_id || null,
+      source_detail: form.source_detail || null,
+      campaign: form.campaign || null,
+      profile: form.profile,
+      potential: form.potential || null,
+      customer_type: form.customer_type,
+      has_demand: form.has_demand,
+      has_budget: form.has_budget,
+      summary: form.summary,
+      budget_amount: parseMoneyInput(form.budget_amount),
+      sold_amount: parseMoneyInput(form.sold_amount),
+      status: "Em atendimento SDR",
+      created_by: profile.id,
+      updated_by: profile.id,
+    };
+
+    const { data: lead, error: leadError } = await supabase
+      .from("leads")
+      .insert(leadPayload)
+      .select("*")
+      .single();
+
+    console.log("Resposta lead:", lead, leadError);
+
+    if (leadError) {
+      setFeedback("Erro ao criar lead: " + leadError.message);
       return;
     }
 
-    setLoading(true);
+    setFeedback("Lead criado com sucesso!");
+    setForm(emptyForm);
+    setExistingCustomer(null);
 
-    try {
-      const customerId = await ensureCustomer();
-
-      const leadPayload = {
-        customer_id: customerId,
-        product_id: form.product_id || null,
-        channel_id: form.channel_id || null,
-        source_detail: form.source_detail.trim() || null,
-        campaign: form.campaign.trim() || null,
-        profile: form.profile,
-        potential: form.potential.trim() || null,
-        customer_type: form.customer_type,
-        has_demand: form.has_demand,
-        has_budget: form.has_budget,
-        summary: form.summary.trim(),
-        budget_amount: parseMoneyInput(form.budget_amount),
-        sold_amount: parseMoneyInput(form.sold_amount),
-        status: "Em atendimento SDR",
-        assigned_sdr_id: profile.role === "SDR" ? profile.id : null,
-        assigned_leader_id: profile.role === "Líder" ? profile.id : null,
-        assigned_vendor_id: profile.role === "Vendedor" ? profile.id : null,
-        created_by: profile.id,
-        updated_by: profile.id,
-      };
-
-      const { data: lead, error: leadError } = await supabase
-        .from("leads")
-        .insert(leadPayload)
-        .select("id, code, quote_number")
-        .single();
-
-      if (leadError) throw leadError;
-
-      await supabase.from("lead_interactions").insert({
-        lead_id: lead.id,
-        interaction_type: "system",
-        title: "Lead criado",
-        description: `Lead criado por ${profile.full_name}`,
-        metadata: {},
-        created_by: profile.id,
-      });
-
-      setForm(emptyForm);
-      setExistingCustomer(null);
-      setFeedback(`Lead salvo com sucesso. Código ${lead.code} • Orçamento ${lead.quote_number}.`);
-    } catch (error) {
-      console.error(error);
-      setFeedback("Não foi possível salvar o lead. Verifique as permissões e os dados.");
-    } finally {
-      setLoading(false);
-    }
+  } catch (err) {
+    console.error("ERRO GERAL:", err);
+    setFeedback("Erro inesperado: " + err.message);
+  } finally {
+    setLoading(false);
   }
+}
 
   const productOptions = useMemo(
     () =>
