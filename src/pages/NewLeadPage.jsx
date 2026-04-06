@@ -33,7 +33,7 @@ const emptyForm = {
 };
 
 export default function NewLeadPage({ profile }) {
-  console.log("VERSAO NOVA NEWLEADPAGE 03");
+  console.log("VERSAO NOVA NEWLEADPAGE 04");
 
   const [form, setForm] = useState(emptyForm);
   const [products, setProducts] = useState([]);
@@ -127,78 +127,42 @@ export default function NewLeadPage({ profile }) {
     }
 
     const payload = {
-      company_name: form.company_name.trim(),
-      contact_name: form.contact_name.trim(),
-      cnpj: digitsOnly(form.cnpj),
-      segment: form.segment.trim() || null,
-      city: form.city.trim() || null,
-      state: form.state || null,
-      phone: digitsOnly(form.phone),
-      email: form.email.trim().toLowerCase(),
-      observations: form.observations.trim() || null,
-      created_by: profile.id,
+      p_company_name: form.company_name.trim(),
+      p_contact_name: form.contact_name.trim(),
+      p_cnpj: digitsOnly(form.cnpj),
+      p_segment: form.segment.trim() || null,
+      p_city: form.city.trim() || null,
+      p_state: form.state || null,
+      p_phone: digitsOnly(form.phone),
+      p_email: form.email.trim().toLowerCase(),
+      p_observations: form.observations.trim() || null,
+      p_created_by: profile.id,
     };
 
-    console.log("PAYLOAD CUSTOMER:", payload);
+    console.log("PAYLOAD CUSTOMER RPC:", payload);
 
-    const insertPromise = supabase.from("customers").insert(payload);
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => {
-        reject(new Error("Timeout ao inserir customer no Supabase"));
-      }, 10000)
+    const rpcTimeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout ao criar customer via RPC")), 10000)
     );
 
-    const insertResult = await Promise.race([insertPromise, timeoutPromise]);
+    const rpcRequest = supabase.rpc("create_customer_simple", payload);
 
-    console.log("Resultado insert customer:", insertResult);
+    const rpcResult = await Promise.race([rpcRequest, rpcTimeout]);
 
-    const { error: insertError } = insertResult;
+    console.log("Resposta RPC customer:", rpcResult);
 
-    if (insertError) {
-      console.error("Erro no insert customer:", insertError);
-      throw insertError;
+    const { data, error } = rpcResult;
+
+    if (error) {
+      console.error("Erro RPC customer:", error);
+      throw error;
     }
 
-    const cnpjDigits = digitsOnly(form.cnpj);
-    const phoneDigits = digitsOnly(form.phone);
-    const email = form.email.trim().toLowerCase();
-
-    const parts = [];
-    if (cnpjDigits) parts.push(`cnpj_digits.eq.${cnpjDigits}`);
-    if (phoneDigits) parts.push(`phone_digits.eq.${phoneDigits}`);
-    if (email) parts.push(`email.eq.${email}`);
-
-    const fetchPromise = supabase
-      .from("customers")
-      .select("id")
-      .or(parts.join(","))
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    const fetchTimeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => {
-        reject(new Error("Timeout ao buscar customer após insert"));
-      }, 10000)
-    );
-
-    const fetchResult = await Promise.race([fetchPromise, fetchTimeoutPromise]);
-
-    console.log("Resposta customer após insert:", fetchResult);
-
-    const { data, error: fetchError } = fetchResult;
-
-    if (fetchError) {
-      throw fetchError;
+    if (!data) {
+      throw new Error("A função RPC não retornou o ID do customer.");
     }
 
-    const customerId = data?.[0]?.id;
-
-    if (!customerId) {
-      throw new Error("Customer salvo, mas não foi possível recuperar o ID.");
-    }
-
-    return customerId;
+    return data;
   }
 
   function validateForm() {
