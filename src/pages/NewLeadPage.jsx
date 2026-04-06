@@ -145,6 +145,13 @@ export default function NewLeadPage({ profile }) {
 
 async function handleSubmit(event) {
   event.preventDefault();
+    // 🔴 ADICIONE ISSO AQUI
+  if (!profile?.id) {
+    setFeedback("Sessão inválida. Saia e entre novamente no sistema.");
+    setLoading(false);
+    return;
+  }
+
   setFeedback("");
 
   const validationError = validateForm();
