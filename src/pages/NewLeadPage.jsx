@@ -134,18 +134,28 @@ async function ensureCustomer() {
     created_by: profile.id,
   };
 
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
+  console.log("ANTES DE OBTER SESSAO");
+
+  const sessionResult = await supabase.auth.getSession();
+
+  console.log("RESULTADO getSession:", sessionResult);
+
+  const session = sessionResult?.data?.session;
+  const sessionError = sessionResult?.error;
 
   if (sessionError) {
+    console.log("ERRO AO OBTER SESSAO:", sessionError);
     throw new Error("Erro ao obter sessão do usuário.");
   }
 
   if (!session?.access_token) {
+    console.log("SEM ACCESS TOKEN");
     throw new Error("Usuário não autenticado. Faça login novamente.");
   }
+
+  console.log("TOKEN OK");
+
+  console.log("VITE_SUPABASE_ANON_KEY:", import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
