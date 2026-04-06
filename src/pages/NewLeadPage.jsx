@@ -112,17 +112,11 @@ export default function NewLeadPage({ profile }) {
     }
   }
 
-  async function ensureCustomer() {
-  console.log("PROFILE ATUAL:", profile);
-
-  if (!profile?.id) {
-    throw new Error(
-      "Perfil do usuário não carregado. Verifique a tabela user_profiles."
-    );
-  }
+async function ensureCustomer() {
+  console.log("INICIO ensureCustomer");
 
   if (existingCustomer?.id) {
-    console.log("Usando customer existente:", existingCustomer.id);
+    console.log("Cliente já existente:", existingCustomer.id);
     return existingCustomer.id;
   }
 
@@ -130,42 +124,43 @@ export default function NewLeadPage({ profile }) {
     company_name: form.company_name.trim(),
     contact_name: form.contact_name.trim(),
     cnpj: digitsOnly(form.cnpj),
-    segment: form.segment.trim() || null,
-    city: form.city.trim() || null,
+    segment: form.segment || null,
+    city: form.city || null,
     state: form.state || null,
     phone: digitsOnly(form.phone),
     email: form.email.trim().toLowerCase(),
-    observations: form.observations.trim() || null,
+    observations: form.observations || null,
     created_by: profile.id,
   };
 
-  console.log("PAYLOAD EDGE FUNCTION CUSTOMER:", payload);
+  console.log("VAI CHAMAR EDGE FUNCTION");
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const response = await fetch(
+    "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
 
-  if (!session?.access_token) {
-    throw new Error("Sessão inválida.");
+  console.log("RESPOSTA RECEBIDA");
+
+  const result = await response.json();
+  console.log("RESULTADO:", result);
+
+  if (!response.ok) {
+    throw new Error(result.error || "Erro ao criar customer");
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  if (!result?.id) {
+    throw new Error("Sem ID retornado");
+  }
 
-  try {
-    const response = await fetch(
-      "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      }
-    );
+  return result.id;
+}
 
     const rawText = await response.text();
     clearTimeout(timeoutId);
