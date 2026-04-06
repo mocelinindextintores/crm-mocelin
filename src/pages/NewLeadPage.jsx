@@ -1,3 +1,6 @@
+export default function NewLeadPage({ profile }) {
+  console.log("VERSAO NOVA NEWLEADPAGE 02");
+  
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { digitsOnly, formatCnpj, formatMoney, formatPhone, parseMoneyInput } from "../lib/utils";
