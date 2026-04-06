@@ -9,17 +9,6 @@ import {
 } from "../lib/utils";
 
 const emptyForm = {
-  ...
-};
-
-export default function NewLeadPage({ profile }) {
-  console.log("VERSAO NOVA NEWLEADPAGE 02");
-
-  const [form, setForm] = useState(emptyForm);
-  ...
-}
-
-const emptyForm = {
   contact_name: "",
   company_name: "",
   cnpj: "",
@@ -44,6 +33,8 @@ const emptyForm = {
 };
 
 export default function NewLeadPage({ profile }) {
+  console.log("VERSAO NOVA NEWLEADPAGE 02");
+
   const [form, setForm] = useState(emptyForm);
   const [products, setProducts] = useState([]);
   const [channels, setChannels] = useState([]);
@@ -57,8 +48,16 @@ export default function NewLeadPage({ profile }) {
 
   async function loadSelects() {
     const [{ data: productsData }, { data: channelsData }] = await Promise.all([
-      supabase.from("products").select("id, name").eq("is_active", true).order("sort_order"),
-      supabase.from("channels").select("id, name").eq("is_active", true).order("sort_order"),
+      supabase
+        .from("products")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("sort_order"),
+      supabase
+        .from("channels")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("sort_order"),
     ]);
 
     setProducts(productsData || []);
@@ -88,7 +87,7 @@ export default function NewLeadPage({ profile }) {
       .limit(1);
 
     if (error) {
-      console.error(error);
+      console.error("Erro ao buscar cliente existente:", error);
       return;
     }
 
@@ -107,73 +106,72 @@ export default function NewLeadPage({ profile }) {
         email: customer.email || prev.email,
         observations: customer.observations || prev.observations,
       }));
-      setFeedback("Cliente já cadastrado encontrado. Os dados foram carregados automaticamente.");
+      setFeedback(
+        "Cliente já cadastrado encontrado. Os dados foram carregados automaticamente."
+      );
     }
   }
 
- async function ensureCustomer() {
-  console.log("PROFILE ATUAL:", profile);
+  async function ensureCustomer() {
+    console.log("PROFILE ATUAL:", profile);
 
-  if (!profile?.id) {
-    throw new Error("Perfil do usuário não carregado. Verifique a tabela user_profiles.");
+    if (!profile?.id) {
+      throw new Error(
+        "Perfil do usuário não carregado. Verifique a tabela user_profiles."
+      );
+    }
+
+    if (existingCustomer?.id) {
+      console.log("Usando customer existente:", existingCustomer.id);
+      return existingCustomer.id;
+    }
+
+    const payload = {
+      company_name: form.company_name.trim(),
+      contact_name: form.contact_name.trim(),
+      cnpj: digitsOnly(form.cnpj),
+      segment: form.segment.trim() || null,
+      city: form.city.trim() || null,
+      state: form.state || null,
+      phone: digitsOnly(form.phone),
+      email: form.email.trim().toLowerCase(),
+      observations: form.observations.trim() || null,
+      created_by: profile.id,
+    };
+
+    console.log("PAYLOAD CUSTOMER:", payload);
+
+    const request = supabase.from("customers").insert(payload).select("id");
+
+    const timeout = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error("Timeout ao criar customer no Supabase")),
+        10000
+      )
+    );
+
+    let result;
+
+    try {
+      result = await Promise.race([request, timeout]);
+      console.log("Resposta customer:", result);
+    } catch (error) {
+      console.error("Erro customer:", error);
+      throw error;
+    }
+
+    const { data, error } = result;
+
+    if (error) throw error;
+
+    const customerId = Array.isArray(data) ? data[0]?.id : data?.id;
+
+    if (!customerId) {
+      throw new Error("Customer criado sem retornar ID.");
+    }
+
+    return customerId;
   }
-
-  if (existingCustomer?.id) return existingCustomer.id;
-
-  const payload = {
-    company_name: form.company_name.trim(),
-    contact_name: form.contact_name.trim(),
-    cnpj: digitsOnly(form.cnpj),
-    segment: form.segment.trim() || null,
-    city: form.city.trim() || null,
-    state: form.state || null,
-    phone: digitsOnly(form.phone),
-    email: form.email.trim().toLowerCase(),
-    observations: form.observations.trim() || null,
-    created_by: profile.id,
-  };
-
-  console.log("PAYLOAD CUSTOMER:", payload);
-
-console.log("PAYLOAD CUSTOMER:", payload);
-
-const request = supabase
-  .from("customers")
-  .insert(payload)
-  .select("id");
-
-const timeout = new Promise((_, reject) =>
-  setTimeout(() => reject(new Error("Timeout ao criar customer no Supabase")), 10000)
-);
-
-let result;
-
-try {
-  result = await Promise.race([request, timeout]);
-  console.log("Resposta customer:", result);
-} catch (error) {
-  console.error("Erro customer:", error);
-  throw error;
-}
-
-const { data, error } = result;
-
-if (error) throw error;
-
-const customerId = Array.isArray(data) ? data[0]?.id : data?.id;
-
-if (!customerId) {
-  throw new Error("Customer criado sem retornar ID.");
-}
-
-return customerId;
-
-  console.log("Resposta customer:", data, error);
-
-  if (error) throw error;
-
-  return data.id;
-}
 
   function validateForm() {
     if (!form.contact_name.trim()) return "Informe o nome do contato.";
@@ -187,134 +185,99 @@ return customerId;
     return "";
   }
 
-async function handleSubmit(event) {
-  event.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
 
-  if (!profile?.id) {
-    setFeedback("Sessão inválida. Saia e entre novamente no sistema.");
-    setLoading(false);
-    return;
-  }
-
-  setFeedback("");
-
-  const validationError = validateForm();
-  if (validationError) {
-    setFeedback(validationError);
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    console.log("=== INICIANDO SALVAMENTO ===");
-
-    let customerId;
-
-    if (existingCustomer?.id) {
-      console.log("Cliente já existe:", existingCustomer.id);
-      customerId = existingCustomer.id;
-    } else {
-      console.log("Criando cliente...");
-
-      const payload = {
-        company_name: form.company_name.trim(),
-        contact_name: form.contact_name.trim(),
-        cnpj: digitsOnly(form.cnpj),
-        segment: form.segment || null,
-        city: form.city || null,
-        state: form.state || null,
-        phone: digitsOnly(form.phone),
-        email: form.email.trim().toLowerCase(),
-        observations: form.observations || null,
-        created_by: profile.id,
-      };
-
-      const { data, error } = await supabase
-        .from("customers")
-        .insert(payload)
-        .select("id")
-        .single();
-
-      console.log("Resposta customer:", data, error);
-
-      if (error) {
-        setFeedback("Erro ao criar cliente: " + error.message);
-        return;
-      }
-
-      customerId = data.id;
-    }
-
-    console.log("Criando lead...");
-
-    const leadPayload = {
-      customer_id: customerId,
-      product_id: form.product_id || null,
-      channel_id: form.channel_id || null,
-      source_detail: form.source_detail || null,
-      campaign: form.campaign || null,
-      profile: form.profile,
-      potential: form.potential || null,
-      customer_type: form.customer_type,
-      has_demand: form.has_demand,
-      has_budget: form.has_budget,
-      summary: form.summary,
-      budget_amount: parseMoneyInput(form.budget_amount),
-      sold_amount: parseMoneyInput(form.sold_amount),
-      status: "Em atendimento SDR",
-      created_by: profile.id,
-      updated_by: profile.id,
-    };
-
-console.log("PAYLOAD LEAD:", leadPayload);
-
-const leadRequest = supabase
-  .from("leads")
-  .insert(leadPayload)
-  .select("id, code, quote_number");
-
-const leadTimeout = new Promise((_, reject) =>
-  setTimeout(() => reject(new Error("Timeout ao criar lead no Supabase")), 10000)
-);
-
-let leadResult;
-
-try {
-  leadResult = await Promise.race([leadRequest, leadTimeout]);
-  console.log("Resposta lead:", leadResult);
-} catch (error) {
-  console.error("Erro lead:", error);
-  throw error;
-}
-
-const { data: leadData, error: leadError } = leadResult;
-
-if (leadError) throw leadError;
-
-const lead = Array.isArray(leadData) ? leadData[0] : leadData;
-
-if (!lead?.id) {
-  throw new Error("Lead criado sem retornar ID.");
-}
-
-    console.log("Resposta lead:", lead, leadError);
-
-    if (leadError) {
-      setFeedback("Erro ao criar lead: " + leadError.message);
+    if (!profile?.id) {
+      setFeedback("Sessão inválida. Saia e entre novamente no sistema.");
+      setLoading(false);
       return;
     }
 
-    setFeedback("Lead criado com sucesso!");
-    setForm(emptyForm);
-    setExistingCustomer(null);
+    setFeedback("");
 
-} catch (error) {
-  console.error("ERRO GERAL AO SALVAR:", error);
-  setFeedback("Erro inesperado: " + (error.message || "Falha ao salvar o lead."));
-} finally {
-  setLoading(false);
-}
+    const validationError = validateForm();
+    if (validationError) {
+      setFeedback(validationError);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log("=== INICIANDO SALVAMENTO ===");
+
+      const customerId = await ensureCustomer();
+
+      console.log("Criando lead...");
+
+      const leadPayload = {
+        customer_id: customerId,
+        product_id: form.product_id || null,
+        channel_id: form.channel_id || null,
+        source_detail: form.source_detail || null,
+        campaign: form.campaign || null,
+        profile: form.profile,
+        potential: form.potential || null,
+        customer_type: form.customer_type,
+        has_demand: form.has_demand,
+        has_budget: form.has_budget,
+        summary: form.summary,
+        budget_amount: parseMoneyInput(form.budget_amount),
+        sold_amount: parseMoneyInput(form.sold_amount),
+        status: "Em atendimento SDR",
+        created_by: profile.id,
+        updated_by: profile.id,
+      };
+
+      console.log("PAYLOAD LEAD:", leadPayload);
+
+      const leadRequest = supabase
+        .from("leads")
+        .insert(leadPayload)
+        .select("id, code, quote_number");
+
+      const leadTimeout = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout ao criar lead no Supabase")),
+          10000
+        )
+      );
+
+      let leadResult;
+
+      try {
+        leadResult = await Promise.race([leadRequest, leadTimeout]);
+        console.log("Resposta lead:", leadResult);
+      } catch (error) {
+        console.error("Erro lead:", error);
+        throw error;
+      }
+
+      const { data: leadData, error: leadError } = leadResult;
+
+      if (leadError) throw leadError;
+
+      const lead = Array.isArray(leadData) ? leadData[0] : leadData;
+
+      if (!lead?.id) {
+        throw new Error("Lead criado sem retornar ID.");
+      }
+
+      setFeedback(
+        `Lead salvo com sucesso. Código ${lead.code} • Orçamento ${lead.quote_number}.`
+      );
+      setForm(emptyForm);
+      setExistingCustomer(null);
+    } catch (error) {
+      console.error("ERRO GERAL AO SALVAR:", error);
+      setFeedback(
+        "Erro inesperado: " + (error.message || "Falha ao salvar o lead.")
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const productOptions = useMemo(
     () =>
@@ -340,13 +303,18 @@ if (!lead?.id) {
     <>
       <section>
         <h2 className="section-title">Novo Lead</h2>
-        <p className="section-subtitle">Cadastre um novo lead conectado ao Supabase.</p>
+        <p className="section-subtitle">
+          Cadastre um novo lead conectado ao Supabase.
+        </p>
       </section>
 
       <form className="card panel-body form-section" onSubmit={handleSubmit}>
         <div className="form-divider">
           <h3>1. Dados do Cliente</h3>
-          <p>Ao informar CNPJ, telefone ou e-mail, o sistema tenta localizar o cliente existente.</p>
+          <p>
+            Ao informar CNPJ, telefone ou e-mail, o sistema tenta localizar o
+            cliente existente.
+          </p>
         </div>
 
         <div className="form-grid-3">
@@ -400,7 +368,9 @@ if (!lead?.id) {
             <label>Estado</label>
             <input
               value={form.state}
-              onChange={(e) => updateField("state", e.target.value.toUpperCase().slice(0, 2))}
+              onChange={(e) =>
+                updateField("state", e.target.value.toUpperCase().slice(0, 2))
+              }
               placeholder="UF"
             />
           </div>
@@ -442,7 +412,10 @@ if (!lead?.id) {
         <div className="form-grid">
           <div>
             <label>Canal</label>
-            <select value={form.channel_id} onChange={(e) => updateField("channel_id", e.target.value)}>
+            <select
+              value={form.channel_id}
+              onChange={(e) => updateField("channel_id", e.target.value)}
+            >
               <option value="">Selecione</option>
               {channelOptions}
             </select>
@@ -450,7 +423,10 @@ if (!lead?.id) {
 
           <div>
             <label>Produto</label>
-            <select value={form.product_id} onChange={(e) => updateField("product_id", e.target.value)}>
+            <select
+              value={form.product_id}
+              onChange={(e) => updateField("product_id", e.target.value)}
+            >
               <option value="">Selecione</option>
               {productOptions}
             </select>
@@ -482,7 +458,10 @@ if (!lead?.id) {
         <div className="form-grid-3">
           <div>
             <label>Perfil *</label>
-            <select value={form.profile} onChange={(e) => updateField("profile", e.target.value)}>
+            <select
+              value={form.profile}
+              onChange={(e) => updateField("profile", e.target.value)}
+            >
               <option value="">Selecione</option>
               <option value="Frio">Frio</option>
               <option value="Morno">Morno</option>
@@ -492,7 +471,10 @@ if (!lead?.id) {
 
           <div>
             <label>Potencial</label>
-            <select value={form.potential} onChange={(e) => updateField("potential", e.target.value)}>
+            <select
+              value={form.potential}
+              onChange={(e) => updateField("potential", e.target.value)}
+            >
               <option value="Alto">Alto</option>
               <option value="Médio">Médio</option>
               <option value="Baixo">Baixo</option>
@@ -501,7 +483,10 @@ if (!lead?.id) {
 
           <div>
             <label>Tipo de Cliente *</label>
-            <select value={form.customer_type} onChange={(e) => updateField("customer_type", e.target.value)}>
+            <select
+              value={form.customer_type}
+              onChange={(e) => updateField("customer_type", e.target.value)}
+            >
               <option value="">Selecione</option>
               <option value="Novo">Novo</option>
               <option value="Recorrente">Recorrente</option>
@@ -517,7 +502,9 @@ if (!lead?.id) {
               onBlur={() =>
                 updateField(
                   "budget_amount",
-                  form.budget_amount ? formatMoney(parseMoneyInput(form.budget_amount)) : ""
+                  form.budget_amount
+                    ? formatMoney(parseMoneyInput(form.budget_amount))
+                    : ""
                 )
               }
               placeholder="R$ 0,00"
@@ -532,7 +519,9 @@ if (!lead?.id) {
               onBlur={() =>
                 updateField(
                   "sold_amount",
-                  form.sold_amount ? formatMoney(parseMoneyInput(form.sold_amount)) : ""
+                  form.sold_amount
+                    ? formatMoney(parseMoneyInput(form.sold_amount))
+                    : ""
                 )
               }
               placeholder="R$ 0,00"
@@ -570,7 +559,9 @@ if (!lead?.id) {
 
         {existingCustomer && (
           <div className="info-banner">
-            Cliente existente localizado: <strong>{existingCustomer.company_name}</strong>. Um novo orçamento será criado para ele.
+            Cliente existente localizado:{" "}
+            <strong>{existingCustomer.company_name}</strong>. Um novo orçamento
+            será criado para ele.
           </div>
         )}
 
