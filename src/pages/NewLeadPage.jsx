@@ -112,50 +112,78 @@ export default function NewLeadPage({ profile }) {
     }
   }
 
-  async function ensureCustomer() {
-    console.log("PROFILE ATUAL:", profile);
+async function ensureCustomer() {
+  console.log("PROFILE ATUAL:", profile);
 
-    if (!profile?.id) {
-      throw new Error(
-        "Perfil do usuário não carregado. Verifique a tabela user_profiles."
-      );
-    }
+  if (!profile?.id) {
+    throw new Error(
+      "Perfil do usuário não carregado. Verifique a tabela user_profiles."
+    );
+  }
 
-    if (existingCustomer?.id) {
-      console.log("Usando customer existente:", existingCustomer.id);
-      return existingCustomer.id;
-    }
+  if (existingCustomer?.id) {
+    console.log("Usando customer existente:", existingCustomer.id);
+    return existingCustomer.id;
+  }
 
-    const payload = {
-      p_company_name: form.company_name.trim(),
-      p_contact_name: form.contact_name.trim(),
-      p_cnpj: digitsOnly(form.cnpj),
-      p_segment: form.segment.trim() || null,
-      p_city: form.city.trim() || null,
-      p_state: form.state || null,
-      p_phone: digitsOnly(form.phone),
-      p_email: form.email.trim().toLowerCase(),
-      p_observations: form.observations.trim() || null,
-      p_created_by: profile.id,
-    };
+  const payload = {
+    p_company_name: form.company_name.trim(),
+    p_contact_name: form.contact_name.trim(),
+    p_cnpj: digitsOnly(form.cnpj),
+    p_segment: form.segment.trim() || null,
+    p_city: form.city.trim() || null,
+    p_state: form.state || null,
+    p_phone: digitsOnly(form.phone),
+    p_email: form.email.trim().toLowerCase(),
+    p_observations: form.observations.trim() || null,
+    p_created_by: profile.id,
+  };
 
-    console.log("PAYLOAD CUSTOMER RPC:", payload);
+  console.log("PAYLOAD CUSTOMER RPC REST:", payload);
 
-    const rpcTimeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout ao criar customer via RPC")), 10000)
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("Sessão inválida para chamar a RPC.");
+  }
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/create_customer_simple`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      }
     );
 
-    const rpcRequest = supabase.rpc("create_customer_simple", payload);
+    clearTimeout(timeoutId);
 
-    const rpcResult = await Promise.race([rpcRequest, rpcTimeout]);
+    const text = await response.text();
+    console.log("Resposta RPC REST raw:", text);
 
-    console.log("Resposta RPC customer:", rpcResult);
+    if (!response.ok) {
+      throw new Error(`Erro RPC REST: ${response.status} - ${text}`);
+    }
 
-    const { data, error } = rpcResult;
+    let data;
 
-    if (error) {
-      console.error("Erro RPC customer:", error);
-      throw error;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
     }
 
     if (!data) {
@@ -163,7 +191,15 @@ export default function NewLeadPage({ profile }) {
     }
 
     return data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Timeout ao criar customer via RPC REST");
+    }
+
+    console.error("Erro RPC REST customer:", error);
+    throw error;
   }
+}
 
   function validateForm() {
     if (!form.contact_name.trim()) return "Informe o nome do contato.";
