@@ -164,7 +164,7 @@ async function ensureCustomer() {
     console.log("VAI CHAMAR EDGE FUNCTION");
 
     const response = await fetch(
-      "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-worker`,
       {
         method: "POST",
         headers: {
