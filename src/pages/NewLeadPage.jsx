@@ -178,7 +178,6 @@ async function ensureCustomer() {
 
   return customerId;
 }
-
   const payload = {
     company_name: form.company_name.trim(),
     contact_name: form.contact_name.trim(),
