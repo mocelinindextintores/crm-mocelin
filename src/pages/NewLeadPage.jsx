@@ -33,7 +33,7 @@ const emptyForm = {
 };
 
 export default function NewLeadPage({ profile }) {
-  console.log("VERSAO NOVA NEWLEADPAGE 06");
+  console.log("VERSAO NOVA NEWLEADPAGE 07");
 
   const [form, setForm] = useState(emptyForm);
   const [products, setProducts] = useState([]);
@@ -47,21 +47,34 @@ export default function NewLeadPage({ profile }) {
   }, []);
 
   async function loadSelects() {
-    const [{ data: productsData }, { data: channelsData }] = await Promise.all([
-      supabase
-        .from("products")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("sort_order"),
-      supabase
-        .from("channels")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("sort_order"),
-    ]);
+    try {
+      const [{ data: productsData, error: productsError }, { data: channelsData, error: channelsError }] =
+        await Promise.all([
+          supabase
+            .from("products")
+            .select("id, name")
+            .eq("is_active", true)
+            .order("sort_order"),
+          supabase
+            .from("channels")
+            .select("id, name")
+            .eq("is_active", true)
+            .order("sort_order"),
+        ]);
 
-    setProducts(productsData || []);
-    setChannels(channelsData || []);
+      if (productsError) {
+        console.error("Erro ao carregar produtos:", productsError);
+      }
+
+      if (channelsError) {
+        console.error("Erro ao carregar canais:", channelsError);
+      }
+
+      setProducts(productsData || []);
+      setChannels(channelsData || []);
+    } catch (error) {
+      console.error("Erro geral ao carregar selects:", error);
+    }
   }
 
   function updateField(field, value) {
@@ -69,145 +82,150 @@ export default function NewLeadPage({ profile }) {
   }
 
   async function searchExistingCustomer() {
-    const cnpjDigits = digitsOnly(form.cnpj);
-    const phoneDigits = digitsOnly(form.phone);
-    const email = form.email.trim().toLowerCase();
-
-    if (!cnpjDigits && !phoneDigits && !email) return;
-
-    const parts = [];
-    if (cnpjDigits) parts.push(`cnpj_digits.eq.${cnpjDigits}`);
-    if (phoneDigits) parts.push(`phone_digits.eq.${phoneDigits}`);
-    if (email) parts.push(`email.eq.${email}`);
-
-    const { data, error } = await supabase
-      .from("customers")
-      .select("*")
-      .or(parts.join(","))
-      .limit(1);
-
-    if (error) {
-      console.error("Erro ao buscar cliente existente:", error);
-      return;
-    }
-
-    if (data?.length) {
-      const customer = data[0];
-
-      setExistingCustomer(customer);
-      setForm((prev) => ({
-        ...prev,
-        contact_name: customer.contact_name || prev.contact_name,
-        company_name: customer.company_name || prev.company_name,
-        cnpj: customer.cnpj || prev.cnpj,
-        segment: customer.segment || prev.segment,
-        city: customer.city || prev.city,
-        state: customer.state || prev.state,
-        phone: customer.phone || prev.phone,
-        email: customer.email || prev.email,
-        observations: customer.observations || prev.observations,
-      }));
-      setFeedback(
-        "Cliente já cadastrado encontrado. Os dados foram carregados automaticamente."
-      );
-    }
-  }
-
-async function ensureCustomer() {
-  console.log("INICIO ensureCustomer");
-
-  if (existingCustomer?.id) {
-    console.log("Cliente já existente:", existingCustomer.id);
-    return existingCustomer.id;
-  }
-
-  const payload = {
-    company_name: form.company_name.trim(),
-    contact_name: form.contact_name.trim(),
-    cnpj: digitsOnly(form.cnpj),
-    segment: form.segment || null,
-    city: form.city || null,
-    state: form.state || null,
-    phone: digitsOnly(form.phone),
-    email: form.email.trim().toLowerCase(),
-    observations: form.observations || null,
-    created_by: profile.id,
-  };
-
-  console.log("ANTES DE OBTER SESSAO");
-
-  const sessionResult = await supabase.auth.getSession();
-
-  console.log("RESULTADO getSession:", sessionResult);
-
-  const session = sessionResult?.data?.session;
-  const sessionError = sessionResult?.error;
-
-  if (sessionError) {
-    console.log("ERRO AO OBTER SESSAO:", sessionError);
-    throw new Error("Erro ao obter sessão do usuário.");
-  }
-
-  if (!session?.access_token) {
-    console.log("SEM ACCESS TOKEN");
-    throw new Error("Usuário não autenticado. Faça login novamente.");
-  }
-
-  console.log("TOKEN OK");
-
-  console.log("VITE_SUPABASE_ANON_KEY:", import.meta.env.VITE_SUPABASE_ANON_KEY);
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    console.log("VAI CHAMAR EDGE FUNCTION");
-
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-worker`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      }
-    );
-
-    clearTimeout(timeoutId);
-
-    const rawText = await response.text();
-    console.log("Resposta Edge Function raw:", rawText);
-
-    let result = {};
     try {
-      result = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      result = { raw: rawText };
+      const cnpjDigits = digitsOnly(form.cnpj);
+      const phoneDigits = digitsOnly(form.phone);
+      const email = form.email.trim().toLowerCase();
+
+      if (!cnpjDigits && !phoneDigits && !email) return;
+
+      const parts = [];
+      if (cnpjDigits) parts.push(`cnpj.eq.${cnpjDigits}`);
+      if (phoneDigits) parts.push(`phone.eq.${phoneDigits}`);
+      if (email) parts.push(`email.eq.${email}`);
+
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .or(parts.join(","))
+        .limit(1);
+
+      if (error) {
+        console.error("Erro ao buscar cliente existente:", error);
+        return;
+      }
+
+      if (data?.length) {
+        const customer = data[0];
+
+        setExistingCustomer(customer);
+        setForm((prev) => ({
+          ...prev,
+          contact_name: customer.contact_name || prev.contact_name,
+          company_name: customer.company_name || prev.company_name,
+          cnpj: customer.cnpj || prev.cnpj,
+          segment: customer.segment || prev.segment,
+          city: customer.city || prev.city,
+          state: customer.state || prev.state,
+          phone: customer.phone || prev.phone,
+          email: customer.email || prev.email,
+          observations: customer.observations || prev.observations,
+        }));
+
+        setFeedback(
+          "Cliente já cadastrado encontrado. Os dados foram carregados automaticamente."
+        );
+      }
+    } catch (error) {
+      console.error("Erro geral na busca de cliente:", error);
     }
-
-    if (!response.ok) {
-      throw new Error(result.error || `Erro HTTP ${response.status}`);
-    }
-
-    if (!result?.id) {
-      throw new Error("A Edge Function não retornou o ID do customer.");
-    }
-
-    return result.id;
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    if (error.name === "AbortError") {
-      throw new Error("Timeout ao criar customer via Edge Function");
-    }
-
-    throw error;
   }
-}
+
+  async function ensureCustomer() {
+    console.log("INICIO ensureCustomer");
+
+    if (existingCustomer?.id) {
+      console.log("Cliente já existente:", existingCustomer.id);
+      return existingCustomer.id;
+    }
+
+    const payload = {
+      company_name: form.company_name.trim(),
+      contact_name: form.contact_name.trim(),
+      cnpj: digitsOnly(form.cnpj),
+      segment: form.segment || null,
+      city: form.city || null,
+      state: form.state || null,
+      phone: digitsOnly(form.phone),
+      email: form.email.trim().toLowerCase(),
+      observations: form.observations || null,
+      created_by: profile.id,
+    };
+
+    console.log("ANTES DE OBTER SESSAO");
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    console.log("RESULTADO getSession:", { session, sessionError });
+
+    if (sessionError) {
+      console.error("ERRO AO OBTER SESSAO:", sessionError);
+      throw new Error("Erro ao obter sessão do usuário.");
+    }
+
+    if (!session?.access_token) {
+      console.error("SEM ACCESS TOKEN");
+      throw new Error("Usuário não autenticado. Faça login novamente.");
+    }
+
+    console.log("TOKEN OK");
+    console.log("VITE_SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
+    console.log("VITE_SUPABASE_ANON_KEY:", import.meta.env.VITE_SUPABASE_ANON_KEY);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      console.log("VAI CHAMAR EDGE FUNCTION");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-worker`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      const rawText = await response.text();
+      console.log("Resposta Edge Function raw:", rawText);
+
+      let result = {};
+      try {
+        result = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        result = { raw: rawText };
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || `Erro HTTP ${response.status}`);
+      }
+
+      if (!result?.id) {
+        throw new Error("A Edge Function não retornou o ID do customer.");
+      }
+
+      return result.id;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error.name === "AbortError") {
+        throw new Error("Timeout ao criar customer via Edge Function");
+      }
+
+      throw error;
+    }
+  }
 
   function validateForm() {
     if (!form.contact_name.trim()) return "Informe o nome do contato.";
@@ -268,20 +286,14 @@ async function ensureCustomer() {
 
       console.log("PAYLOAD LEAD:", leadPayload);
 
-      const leadRequest = supabase
+      const leadResult = await supabase
         .from("leads")
         .insert(leadPayload)
         .select("id, code, quote_number");
 
-      const leadTimeout = new Promise((_, reject) =>
-        setTimeout(() => {
-          reject(new Error("Timeout ao criar lead no Supabase"));
-        }, 15000)
-      );
-
-      const leadResult = await Promise.race([leadRequest, leadTimeout]);
-
-      console.log("Resposta lead:", leadResult);
+      console.log("LEAD RESULT COMPLETO:", leadResult);
+      console.log("LEAD DATA:", leadResult.data);
+      console.log("LEAD ERROR:", leadResult.error);
 
       const { data: leadData, error: leadError } = leadResult;
 
