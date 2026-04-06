@@ -127,47 +127,53 @@ async function ensureCustomer() {
   }
 
   const payload = {
-    p_company_name: form.company_name.trim(),
-    p_contact_name: form.contact_name.trim(),
-    p_cnpj: digitsOnly(form.cnpj),
-    p_segment: form.segment.trim() || null,
-    p_city: form.city.trim() || null,
-    p_state: form.state || null,
-    p_phone: digitsOnly(form.phone),
-    p_email: form.email.trim().toLowerCase(),
-    p_observations: form.observations.trim() || null,
-    p_created_by: profile.id,
+    company_name: form.company_name.trim(),
+    contact_name: form.contact_name.trim(),
+    cnpj: digitsOnly(form.cnpj),
+    segment: form.segment.trim() || null,
+    city: form.city.trim() || null,
+    state: form.state || null,
+    phone: digitsOnly(form.phone),
+    email: form.email.trim().toLowerCase(),
+    observations: form.observations.trim() || null,
+    created_by: profile.id,
   };
 
-  console.log("PAYLOAD CUSTOMER RPC REST:", payload);
+  console.log("PAYLOAD EDGE FUNCTION CUSTOMER:", payload);
 
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    throw new Error("Sessão inválida para chamar a RPC.");
+    throw new Error("Sessão inválida.");
   }
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const response = await fetch(
+    "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const result = await response.json();
+  console.log("Resposta Edge Function:", result);
 
-  try {
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/rpc/create_customer_simple`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      }
-    );
+  if (!response.ok) {
+    throw new Error(result.error || "Erro ao criar customer");
+  }
+
+  if (!result?.id) {
+    throw new Error("A Edge Function não retornou o ID do customer.");
+  }
+
+  return result.id;
+}
 
     clearTimeout(timeoutId);
 
