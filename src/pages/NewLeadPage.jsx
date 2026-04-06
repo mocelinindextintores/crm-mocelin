@@ -112,124 +112,72 @@ export default function NewLeadPage({ profile }) {
     }
   }
 
-async function ensureCustomer() {
-  console.log("PROFILE ATUAL:", profile);
+  async function ensureCustomer() {
+    console.log("PROFILE ATUAL:", profile);
 
-  if (!profile?.id) {
-    throw new Error(
-      "Perfil do usuário não carregado. Verifique a tabela user_profiles."
-    );
+    if (!profile?.id) {
+      throw new Error(
+        "Perfil do usuário não carregado. Verifique a tabela user_profiles."
+      );
+    }
+
+    if (existingCustomer?.id) {
+      console.log("Usando customer existente:", existingCustomer.id);
+      return existingCustomer.id;
+    }
+
+    const payload = {
+      company_name: form.company_name.trim(),
+      contact_name: form.contact_name.trim(),
+      cnpj: digitsOnly(form.cnpj),
+      segment: form.segment.trim() || null,
+      city: form.city.trim() || null,
+      state: form.state || null,
+      phone: digitsOnly(form.phone),
+      email: form.email.trim().toLowerCase(),
+      observations: form.observations.trim() || null,
+      created_by: profile.id,
+    };
+
+    console.log("PAYLOAD CUSTOMER:", payload);
+
+    const { error: insertError } = await supabase
+      .from("customers")
+      .insert(payload);
+
+    if (insertError) {
+      console.error("Erro no insert customer:", insertError);
+      throw insertError;
+    }
+
+    const cnpjDigits = digitsOnly(form.cnpj);
+    const phoneDigits = digitsOnly(form.phone);
+    const email = form.email.trim().toLowerCase();
+
+    const parts = [];
+    if (cnpjDigits) parts.push(`cnpj_digits.eq.${cnpjDigits}`);
+    if (phoneDigits) parts.push(`phone_digits.eq.${phoneDigits}`);
+    if (email) parts.push(`email.eq.${email}`);
+
+    const { data, error: fetchError } = await supabase
+      .from("customers")
+      .select("id")
+      .or(parts.join(","))
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    console.log("Resposta customer após insert:", data, fetchError);
+
+    if (fetchError) throw fetchError;
+
+    const customerId = data?.[0]?.id;
+
+    if (!customerId) {
+      throw new Error("Customer salvo, mas não foi possível recuperar o ID.");
+    }
+
+    return customerId;
   }
-
-  if (existingCustomer?.id) {
-    console.log("Usando customer existente:", existingCustomer.id);
-    return existingCustomer.id;
-  }
-
-  const payload = {
-    company_name: form.company_name.trim(),
-    contact_name: form.contact_name.trim(),
-    cnpj: digitsOnly(form.cnpj),
-    segment: form.segment.trim() || null,
-    city: form.city.trim() || null,
-    state: form.state || null,
-    phone: digitsOnly(form.phone),
-    email: form.email.trim().toLowerCase(),
-    observations: form.observations.trim() || null,
-    created_by: profile.id,
-  };
-
-  console.log("PAYLOAD CUSTOMER:", payload);
-
-  const { error: insertError } = await supabase
-    .from("customers")
-    .insert(payload);
-
-  if (insertError) {
-    console.error("Erro no insert customer:", insertError);
-    throw insertError;
-  }
-
-  const cnpjDigits = digitsOnly(form.cnpj);
-  const phoneDigits = digitsOnly(form.phone);
-  const email = form.email.trim().toLowerCase();
-
-  const parts = [];
-  if (cnpjDigits) parts.push(`cnpj_digits.eq.${cnpjDigits}`);
-  if (phoneDigits) parts.push(`phone_digits.eq.${phoneDigits}`);
-  if (email) parts.push(`email.eq.${email}`);
-
-  const { data, error: fetchError } = await supabase
-    .from("customers")
-    .select("id")
-    .or(parts.join(","))
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  console.log("Resposta customer após insert:", data, fetchError);
-
-  if (fetchError) throw fetchError;
-
-  const customerId = data?.[0]?.id;
-
-  if (!customerId) {
-    throw new Error("Customer salvo, mas não foi possível recuperar o ID.");
-  }
-
-  return customerId;
-}
-  const payload = {
-    company_name: form.company_name.trim(),
-    contact_name: form.contact_name.trim(),
-    cnpj: digitsOnly(form.cnpj),
-    segment: form.segment.trim() || null,
-    city: form.city.trim() || null,
-    state: form.state || null,
-    phone: digitsOnly(form.phone),
-    email: form.email.trim().toLowerCase(),
-    observations: form.observations.trim() || null,
-    created_by: profile.id,
-  };
-
-  console.log("PAYLOAD CUSTOMER:", payload);
-
-  const { error: insertError } = await supabase
-    .from("customers")
-    .insert(payload);
-
-  if (insertError) {
-    console.error("Erro no insert customer:", insertError);
-    throw insertError;
-  }
-
-  const cnpjDigits = digitsOnly(form.cnpj);
-  const phoneDigits = digitsOnly(form.phone);
-  const email = form.email.trim().toLowerCase();
-
-  const parts = [];
-  if (cnpjDigits) parts.push(`cnpj_digits.eq.${cnpjDigits}`);
-  if (phoneDigits) parts.push(`phone_digits.eq.${phoneDigits}`);
-  if (email) parts.push(`email.eq.${email}`);
-
-  const { data, error: fetchError } = await supabase
-    .from("customers")
-    .select("id")
-    .or(parts.join(","))
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  console.log("Resposta customer após insert:", data, fetchError);
-
-  if (fetchError) throw fetchError;
-
-  const customerId = data?.[0]?.id;
-
-  if (!customerId) {
-    throw new Error("Customer salvo, mas não foi possível recuperar o ID.");
-  }
-
-  return customerId;
-}
 
   function validateForm() {
     if (!form.contact_name.trim()) return "Informe o nome do contato.";
