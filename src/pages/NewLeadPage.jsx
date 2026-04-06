@@ -113,76 +113,91 @@ export default function NewLeadPage({ profile }) {
     }
   }
 
-  async function ensureCustomer() {
-    console.log("INICIO ensureCustomer");
+async function ensureCustomer() {
+  console.log("INICIO ensureCustomer");
 
-    if (existingCustomer?.id) {
-      console.log("Cliente já existente:", existingCustomer.id);
-      return existingCustomer.id;
-    }
-
-    const payload = {
-      company_name: form.company_name.trim(),
-      contact_name: form.contact_name.trim(),
-      cnpj: digitsOnly(form.cnpj),
-      segment: form.segment || null,
-      city: form.city || null,
-      state: form.state || null,
-      phone: digitsOnly(form.phone),
-      email: form.email.trim().toLowerCase(),
-      observations: form.observations || null,
-      created_by: profile.id,
-    };
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    try {
-      console.log("VAI CHAMAR EDGE FUNCTION");
-
-      const response = await fetch(
-        "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        }
-      );
-
-      clearTimeout(timeoutId);
-
-      const rawText = await response.text();
-      console.log("Resposta Edge Function raw:", rawText);
-
-      let result = {};
-      try {
-        result = rawText ? JSON.parse(rawText) : {};
-      } catch {
-        result = { raw: rawText };
-      }
-
-      if (!response.ok) {
-        throw new Error(result.error || `Erro HTTP ${response.status}`);
-      }
-
-      if (!result?.id) {
-        throw new Error("A Edge Function não retornou o ID do customer.");
-      }
-
-      return result.id;
-    } catch (error) {
-      clearTimeout(timeoutId);
-
-      if (error.name === "AbortError") {
-        throw new Error("Timeout ao criar customer via Edge Function");
-      }
-
-      throw error;
-    }
+  if (existingCustomer?.id) {
+    console.log("Cliente já existente:", existingCustomer.id);
+    return existingCustomer.id;
   }
+
+  const payload = {
+    company_name: form.company_name.trim(),
+    contact_name: form.contact_name.trim(),
+    cnpj: digitsOnly(form.cnpj),
+    segment: form.segment || null,
+    city: form.city || null,
+    state: form.state || null,
+    phone: digitsOnly(form.phone),
+    email: form.email.trim().toLowerCase(),
+    observations: form.observations || null,
+    created_by: profile.id,
+  };
+
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError) {
+    throw new Error("Erro ao obter sessão do usuário.");
+  }
+
+  if (!session?.access_token) {
+    throw new Error("Usuário não autenticado. Faça login novamente.");
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    console.log("VAI CHAMAR EDGE FUNCTION");
+
+    const response = await fetch(
+      "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    const rawText = await response.text();
+    console.log("Resposta Edge Function raw:", rawText);
+
+    let result = {};
+    try {
+      result = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      result = { raw: rawText };
+    }
+
+    if (!response.ok) {
+      throw new Error(result.error || `Erro HTTP ${response.status}`);
+    }
+
+    if (!result?.id) {
+      throw new Error("A Edge Function não retornou o ID do customer.");
+    }
+
+    return result.id;
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error.name === "AbortError") {
+      throw new Error("Timeout ao criar customer via Edge Function");
+    }
+
+    throw error;
+  }
+}
 
   function validateForm() {
     if (!form.contact_name.trim()) return "Informe o nome do contato.";
