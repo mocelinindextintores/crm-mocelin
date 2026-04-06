@@ -16,12 +16,29 @@ export default function App() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function bootstrap() {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session?.user?.id) await loadProfile(session.user.id);
-      setLoading(false);
-    }
+async function bootstrap() {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error) {
+    console.error("Erro ao recuperar sessão:", error);
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    setLoading(false);
+    return;
+  }
+
+  setSession(session);
+
+  if (session?.user?.id) {
+    await loadProfile(session.user.id);
+  }
+
+  setLoading(false);
+}
 
     bootstrap();
 
