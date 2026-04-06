@@ -33,7 +33,7 @@ const emptyForm = {
 };
 
 export default function NewLeadPage({ profile }) {
-  console.log("VERSAO NOVA NEWLEADPAGE 04");
+  console.log("VERSAO NOVA NEWLEADPAGE 05");
 
   const [form, setForm] = useState(emptyForm);
   const [products, setProducts] = useState([]);
@@ -112,100 +112,84 @@ export default function NewLeadPage({ profile }) {
     }
   }
 
-async function ensureCustomer() {
-  console.log("PROFILE ATUAL:", profile);
+  async function ensureCustomer() {
+    console.log("PROFILE ATUAL:", profile);
 
-  if (!profile?.id) {
-    throw new Error(
-      "Perfil do usuário não carregado. Verifique a tabela user_profiles."
-    );
-  }
-
-  if (existingCustomer?.id) {
-    console.log("Usando customer existente:", existingCustomer.id);
-    return existingCustomer.id;
-  }
-
-  const payload = {
-    company_name: form.company_name.trim(),
-    contact_name: form.contact_name.trim(),
-    cnpj: digitsOnly(form.cnpj),
-    segment: form.segment.trim() || null,
-    city: form.city.trim() || null,
-    state: form.state || null,
-    phone: digitsOnly(form.phone),
-    email: form.email.trim().toLowerCase(),
-    observations: form.observations.trim() || null,
-    created_by: profile.id,
-  };
-
-  console.log("PAYLOAD EDGE FUNCTION CUSTOMER:", payload);
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.access_token) {
-    throw new Error("Sessão inválida.");
-  }
-
-  const response = await fetch(
-    "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-
-  const result = await response.json();
-  console.log("Resposta Edge Function:", result);
-
-  if (!response.ok) {
-    throw new Error(result.error || "Erro ao criar customer");
-  }
-
-  if (!result?.id) {
-    throw new Error("A Edge Function não retornou o ID do customer.");
-  }
-
-  return result.id;
-}
-
-    clearTimeout(timeoutId);
-
-    const text = await response.text();
-    console.log("Resposta RPC REST raw:", text);
-
-    if (!response.ok) {
-      throw new Error(`Erro RPC REST: ${response.status} - ${text}`);
+    if (!profile?.id) {
+      throw new Error(
+        "Perfil do usuário não carregado. Verifique a tabela user_profiles."
+      );
     }
 
-    let data;
+    if (existingCustomer?.id) {
+      console.log("Usando customer existente:", existingCustomer.id);
+      return existingCustomer.id;
+    }
+
+    const payload = {
+      company_name: form.company_name.trim(),
+      contact_name: form.contact_name.trim(),
+      cnpj: digitsOnly(form.cnpj),
+      segment: form.segment.trim() || null,
+      city: form.city.trim() || null,
+      state: form.state || null,
+      phone: digitsOnly(form.phone),
+      email: form.email.trim().toLowerCase(),
+      observations: form.observations.trim() || null,
+      created_by: profile.id,
+    };
+
+    console.log("PAYLOAD EDGE FUNCTION CUSTOMER:", payload);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new Error("Sessão inválida.");
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
+      const response = await fetch(
+        "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        }
+      );
 
-    if (!data) {
-      throw new Error("A função RPC não retornou o ID do customer.");
-    }
+      clearTimeout(timeoutId);
 
-    return data;
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw new Error("Timeout ao criar customer via RPC REST");
-    }
+      const result = await response.json();
+      console.log("Resposta Edge Function:", result);
 
-    console.error("Erro RPC REST customer:", error);
-    throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Erro ao criar customer");
+      }
+
+      if (!result?.id) {
+        throw new Error("A Edge Function não retornou o ID do customer.");
+      }
+
+      return result.id;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error.name === "AbortError") {
+        throw new Error("Timeout ao criar customer via Edge Function");
+      }
+
+      throw error;
+    }
   }
-}
 
   function validateForm() {
     if (!form.contact_name.trim()) return "Informe o nome do contato.";
@@ -274,7 +258,7 @@ async function ensureCustomer() {
       const leadTimeout = new Promise((_, reject) =>
         setTimeout(() => {
           reject(new Error("Timeout ao criar lead no Supabase"));
-        }, 10000)
+        }, 15000)
       );
 
       const leadResult = await Promise.race([leadRequest, leadTimeout]);
