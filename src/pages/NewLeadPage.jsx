@@ -118,11 +118,38 @@ export default function NewLeadPage({ profile }) {
 
   console.log("PAYLOAD CUSTOMER:", payload);
 
-  const { data, error } = await supabase
-    .from("customers")
-    .insert(payload)
-    .select("id")
-    .single();
+console.log("PAYLOAD CUSTOMER:", payload);
+
+const request = supabase
+  .from("customers")
+  .insert(payload)
+  .select("id");
+
+const timeout = new Promise((_, reject) =>
+  setTimeout(() => reject(new Error("Timeout ao criar customer no Supabase")), 10000)
+);
+
+let result;
+
+try {
+  result = await Promise.race([request, timeout]);
+  console.log("Resposta customer:", result);
+} catch (error) {
+  console.error("Erro customer:", error);
+  throw error;
+}
+
+const { data, error } = result;
+
+if (error) throw error;
+
+const customerId = Array.isArray(data) ? data[0]?.id : data?.id;
+
+if (!customerId) {
+  throw new Error("Customer criado sem retornar ID.");
+}
+
+return customerId;
 
   console.log("Resposta customer:", data, error);
 
@@ -145,7 +172,7 @@ export default function NewLeadPage({ profile }) {
 
 async function handleSubmit(event) {
   event.preventDefault();
-    // 🔴 ADICIONE ISSO AQUI
+
   if (!profile?.id) {
     setFeedback("Sessão inválida. Saia e entre novamente no sistema.");
     setLoading(false);
@@ -223,11 +250,36 @@ async function handleSubmit(event) {
       updated_by: profile.id,
     };
 
-    const { data: lead, error: leadError } = await supabase
-      .from("leads")
-      .insert(leadPayload)
-      .select("*")
-      .single();
+console.log("PAYLOAD LEAD:", leadPayload);
+
+const leadRequest = supabase
+  .from("leads")
+  .insert(leadPayload)
+  .select("id, code, quote_number");
+
+const leadTimeout = new Promise((_, reject) =>
+  setTimeout(() => reject(new Error("Timeout ao criar lead no Supabase")), 10000)
+);
+
+let leadResult;
+
+try {
+  leadResult = await Promise.race([leadRequest, leadTimeout]);
+  console.log("Resposta lead:", leadResult);
+} catch (error) {
+  console.error("Erro lead:", error);
+  throw error;
+}
+
+const { data: leadData, error: leadError } = leadResult;
+
+if (leadError) throw leadError;
+
+const lead = Array.isArray(leadData) ? leadData[0] : leadData;
+
+if (!lead?.id) {
+  throw new Error("Lead criado sem retornar ID.");
+}
 
     console.log("Resposta lead:", lead, leadError);
 
