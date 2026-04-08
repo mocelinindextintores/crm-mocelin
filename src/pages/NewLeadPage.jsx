@@ -131,70 +131,75 @@ export default function NewLeadPage({ profile }) {
     }
   }
 
-  async function ensureCustomer() {
-    console.log("INICIO ensureCustomer");
+async function ensureCustomer() {
+  console.log("INICIO ensureCustomer");
 
-    if (existingCustomer?.id) {
-      console.log("Cliente já existente:", existingCustomer.id);
-      return existingCustomer.id;
-    }
+  if (!profile?.id) {
+    throw new Error("Perfil sem ID");
+  }
 
-    const payload = {
-      company_name: form.company_name.trim(),
-      contact_name: form.contact_name.trim(),
-      cnpj: digitsOnly(form.cnpj),
-      segment: form.segment || null,
-      city: form.city || null,
-      state: form.state || null,
-      phone: digitsOnly(form.phone),
-      email: form.email.trim().toLowerCase(),
-      observations: form.observations || null,
-      created_by: profile.id,
-    };
+  if (existingCustomer?.id) {
+    console.log("Cliente já existente:", existingCustomer.id);
+    return existingCustomer.id;
+  }
 
-    console.log("ANTES DE OBTER SESSAO");
+  const payload = {
+    company_name: form.company_name.trim(),
+    contact_name: form.contact_name.trim(),
+    cnpj: digitsOnly(form.cnpj),
+    segment: form.segment || null,
+    city: form.city || null,
+    state: form.state || null,
+    phone: digitsOnly(form.phone),
+    email: form.email.trim().toLowerCase(),
+    observations: form.observations || null,
+    created_by: profile.id,
+  };
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+  console.log("ANTES DO FETCH");
+  console.log("URL:", "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker");
+  console.log("PAYLOAD:", payload);
 
-    console.log("RESULTADO getSession:", { session, sessionError });
+  let response;
 
-    if (sessionError) {
-      console.error("ERRO AO OBTER SESSAO:", sessionError);
-      throw new Error("Erro ao obter sessão do usuário.");
-    }
+  try {
+    response = await fetch(
+      "https://xoruwnavuivirdktrpwg.supabase.co/functions/v1/smart-worker",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+  } catch (err) {
+    console.error("ERRO NO FETCH:", err);
+    throw err;
+  }
 
-    if (!session?.access_token) {
-      console.error("SEM ACCESS TOKEN");
-      throw new Error("Usuário não autenticado. Faça login novamente.");
-    }
+  console.log("DEPOIS DO FETCH", response);
 
-    console.log("TOKEN OK");
-    console.log("VITE_SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
-    console.log("VITE_SUPABASE_ANON_KEY:", import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const text = await response.text();
+  console.log("RAW RESPONSE:", text);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let result = {};
+  try {
+    result = text ? JSON.parse(text) : {};
+  } catch {
+    result = { raw: text };
+  }
 
-    try {
-      console.log("VAI CHAMAR EDGE FUNCTION");
+  if (!response.ok) {
+    throw new Error(result.error || `Erro HTTP ${response.status}`);
+  }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-worker`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        }
-      );
+  if (!result?.id) {
+    throw new Error("Sem ID retornado pela Edge Function");
+  }
 
+  return result.id;
+}
       clearTimeout(timeoutId);
 
       const rawText = await response.text();
